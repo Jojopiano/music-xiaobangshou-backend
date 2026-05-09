@@ -1,0 +1,39 @@
+# Render 部署設定
+services:
+  - type: web
+    name: music-xiaobangshou-api
+    runtime: docker
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: DB_HOST
+        fromDatabase:
+          name: music-xiaobangshou-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: music-xiaobangshou-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: music-xiaobangshou-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: music-xiaobangshou-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: music-xiaobangshou-db
+          property: password
+      - key: JWT_SECRET
+        generateValue: true
+
+databases:
+  - name: music-xiaobangshou-db
+    plan: free
+    databaseName: music_xiaobangshou
+    user: music_user
