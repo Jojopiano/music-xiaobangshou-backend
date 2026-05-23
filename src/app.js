@@ -21,6 +21,9 @@ app.use('/api/lessons', require('./routes/lessons'));
 app.use('/api/reschedule', require('./routes/reschedule'));
 app.use('/api/attendance', require('./routes/attendance'));
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/invite-codes', require('./routes/inviteCodes'));
+app.use('/api/relationships', require('./routes/relationships'));
+app.use('/api/users', require('./routes/users'));
 
 // 404 handler
 app.use((req, res) => {
