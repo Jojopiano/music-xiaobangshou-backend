@@ -77,7 +77,7 @@ router.post('/login', async (req, res) => {
 
     // 查詢用戶
     const userResult = await db.query(
-      'SELECT id, email, name, role, avatar, password_hash FROM users WHERE email = $1 AND is_active = true',
+      'SELECT id, email, name, display_name, role, avatar, password_hash FROM users WHERE email = $1 AND is_active = true',
       [email]
     );
 
@@ -181,7 +181,7 @@ router.post('/oauth', async (req, res) => {
 
     // 取得用戶資訊
     const userResult = await db.query(
-      'SELECT id, email, name, role, avatar FROM users WHERE id = $1',
+      'SELECT id, email, name, display_name, role, avatar FROM users WHERE id = $1',
       [userId]
     );
 
