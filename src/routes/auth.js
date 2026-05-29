@@ -117,7 +117,7 @@ router.post('/login', async (req, res) => {
 router.get('/me', authenticateToken, async (req, res) => {
   try {
     const userResult = await db.query(
-      'SELECT id, email, name, role, avatar, phone, created_at FROM users WHERE id = $1',
+      'SELECT id, email, name, display_name, role, avatar, phone, created_at FROM users WHERE id = $1',
       [req.user.userId]
     );
 
