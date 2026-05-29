@@ -10,13 +10,35 @@ const response = (success, data = null, error = null) => ({
 });
 
 // ============================================
+// GET /api/users/profile
+// 取得目前登入用戶的個人資料
+// ============================================
+router.get('/profile', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const result = await db.query(
+      `SELECT id, email, name, display_name, studio_name, instrument, bio, avatar_url, role, phone, created_at, updated_at
+       FROM users WHERE id = $1 AND is_active = true`,
+      [userId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json(response(false, null, '用戶不存在'));
+    }
+    res.json(response(true, { user: result.rows[0] }));
+  } catch (err) {
+    console.error('Get my profile error:', err);
+    res.status(500).json(response(false, null, '取得用戶資料失敗'));
+  }
+});
+
+// ============================================
 // PUT /api/users/profile
 // 更新用戶個人資料（老師/學生皆可）
 // ============================================
 router.put('/profile', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.userId;
-    const { displayName, studioName, instrument, bio, avatarUrl } = req.body;
+    const { displayName, studioName, instrument, bio, avatarUrl, phone } = req.body;
 
     // 欄位長度驗證
     if (displayName !== undefined) {
@@ -64,6 +86,10 @@ router.put('/profile', authenticateToken, async (req, res) => {
     if (avatarUrl !== undefined) {
       updates.push(`avatar_url = $${paramIndex++}`);
       values.push(avatarUrl.trim() || null);
+    }
+    if (phone !== undefined) {
+      updates.push(`phone = $${paramIndex++}`);
+      values.push(phone.trim() || null);
     }
 
     if (updates.length === 0) {

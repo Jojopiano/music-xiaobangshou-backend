@@ -135,7 +135,8 @@ router.get('/me', authenticateToken, async (req, res) => {
 // 第三方登入 (Apple/Google)
 router.post('/oauth', async (req, res) => {
   try {
-    const { provider, providerUserId, email, name } = req.body;
+    const { provider, providerUserId, email, name, role } = req.body;
+    const userRole = ['teacher', 'student'].includes(role) ? role : 'student';
 
     if (!provider || !providerUserId) {
       return res.status(400).json(response(false, null, '缺少必要欄位'));
@@ -156,16 +157,20 @@ router.post('/oauth', async (req, res) => {
       // 新用戶，建立帳號
       const userResult = await db.query(
         'INSERT INTO users (email, name, role, avatar) VALUES ($1, $2, $3, $4) RETURNING id',
-        [email || `${provider}_${providerUserId}@example.com`, name || '新用戶', 'student', name ? name.charAt(0) : '用']
+        [email || `${provider}_${providerUserId}@example.com`, name || '新用戶', userRole, name ? name.charAt(0) : '用']
       );
 
       userId = userResult.rows[0].id;
 
-      // 建立學生資料
-      await db.query(
-        'INSERT INTO students (user_id, instrument) VALUES ($1, $2)',
-        [userId, '未指定']
-      );
+      // 依角色建立對應資料
+      if (userRole === 'teacher') {
+        await db.query('INSERT INTO teachers (user_id) VALUES ($1)', [userId]);
+      } else {
+        await db.query(
+          'INSERT INTO students (user_id, instrument) VALUES ($1, $2)',
+          [userId, '未指定']
+        );
+      }
 
       // 綁定 OAuth
       await db.query(
