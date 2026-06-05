@@ -94,11 +94,16 @@ router.post('/', authenticateToken, requireRole('teacher'), async (req, res) => 
       [req.user.userId]
     );
 
+    let teacherId;
     if (teacherResult.rows.length === 0) {
-      return res.status(403).json(response(false, null, '找不到老師資料'));
+      const inserted = await db.query(
+        'INSERT INTO teachers (user_id) VALUES ($1) RETURNING id',
+        [req.user.userId]
+      );
+      teacherId = inserted.rows[0].id;
+    } else {
+      teacherId = teacherResult.rows[0].id;
     }
-
-    const teacherId = teacherResult.rows[0].id;
 
     // 前端傳 user_id，轉換成 students.id
     const studentRecord = await db.query(
@@ -211,11 +216,17 @@ router.post('/credits', authenticateToken, requireRole('teacher'), async (req, r
       [req.user.userId]
     );
 
+    let teacherId;
     if (teacherResult.rows.length === 0) {
-      return res.status(403).json(response(false, null, '找不到老師資料'));
+      // 自動補建 teachers 記錄
+      const inserted = await db.query(
+        'INSERT INTO teachers (user_id) VALUES ($1) RETURNING id',
+        [req.user.userId]
+      );
+      teacherId = inserted.rows[0].id;
+    } else {
+      teacherId = teacherResult.rows[0].id;
     }
-
-    const teacherId = teacherResult.rows[0].id;
 
     // 前端傳 user_id，需轉換成 students.id
     const studentRecord = await db.query(

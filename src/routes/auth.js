@@ -153,6 +153,21 @@ router.post('/oauth', async (req, res) => {
     if (oauthResult.rows.length > 0) {
       // 已綁定，直接登入
       userId = oauthResult.rows[0].user_id;
+
+      // 確保角色對應記錄存在（舊帳號可能缺少）
+      const existingUser = await db.query('SELECT role FROM users WHERE id = $1', [userId]);
+      const existingRole = existingUser.rows[0]?.role;
+      if (existingRole === 'teacher') {
+        const teacherExists = await db.query('SELECT id FROM teachers WHERE user_id = $1', [userId]);
+        if (teacherExists.rows.length === 0) {
+          await db.query('INSERT INTO teachers (user_id) VALUES ($1)', [userId]);
+        }
+      } else if (existingRole === 'student') {
+        const studentExists = await db.query('SELECT id FROM students WHERE user_id = $1', [userId]);
+        if (studentExists.rows.length === 0) {
+          await db.query('INSERT INTO students (user_id, instrument) VALUES ($1, $2)', [userId, '未指定']);
+        }
+      }
     } else {
       // 新用戶，建立帳號
       const userResult = await db.query(
