@@ -35,6 +35,25 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
+// 建立通知
+router.post('/', authenticateToken, async (req, res) => {
+  try {
+    const { toUserId, message, type, lessonId } = req.body;
+    if (!toUserId || !message) {
+      return res.status(400).json(response(false, null, '缺少必要欄位'));
+    }
+    const result = await db.query(
+      `INSERT INTO notifications (to_user_id, message, type, lesson_id, is_read)
+       VALUES ($1, $2, $3, $4, false) RETURNING *`,
+      [toUserId, message, type || 'info', lessonId || null]
+    );
+    res.status(201).json(response(true, { notification: result.rows[0] }));
+  } catch (err) {
+    console.error('Create notification error:', err);
+    res.status(500).json(response(false, null, '建立通知失敗'));
+  }
+});
+
 // 標記通知為已讀
 router.put('/:id/read', authenticateToken, async (req, res) => {
   try {

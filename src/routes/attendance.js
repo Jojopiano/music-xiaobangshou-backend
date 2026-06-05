@@ -14,7 +14,7 @@ router.get('/', authenticateToken, async (req, res) => {
   try {
     const { studentId, dateFrom, dateTo } = req.query;
     let query = `
-      SELECT a.*, u.name as student_name
+      SELECT a.*, s.user_id as student_user_id, u.name as student_name
       FROM attendance_records a
       JOIN students s ON a.student_id = s.id
       JOIN users u ON s.user_id = u.id
@@ -64,10 +64,20 @@ router.post('/', authenticateToken, async (req, res) => {
       return res.status(400).json(response(false, null, '缺少必要欄位'));
     }
 
+    // 前端傳 user_id，轉換成 students.id
+    const studentRecord = await db.query(
+      'SELECT id FROM students WHERE user_id = $1',
+      [studentId]
+    );
+    if (studentRecord.rows.length === 0) {
+      return res.status(404).json(response(false, null, '找不到學生資料'));
+    }
+    const studentDbId = studentRecord.rows[0].id;
+
     // 檢查是否已存在
     const existingResult = await db.query(
       'SELECT id FROM attendance_records WHERE student_id = $1 AND record_date = $2',
-      [studentId, recordDate]
+      [studentDbId, recordDate]
     );
 
     let result;
@@ -99,7 +109,7 @@ router.post('/', authenticateToken, async (req, res) => {
       // 新增
       result = await db.query(
         'INSERT INTO attendance_records (student_id, record_date, teacher_action, student_action) VALUES ($1, $2, $3, $4) RETURNING *',
-        [studentId, recordDate, teacherAction, studentAction]
+        [studentDbId, recordDate, teacherAction, studentAction]
       );
     }
 
