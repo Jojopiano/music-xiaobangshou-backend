@@ -100,25 +100,26 @@ router.post('/', authenticateToken, requireRole('teacher'), async (req, res) => 
 
     const teacherId = teacherResult.rows[0].id;
 
-    // 檢查學生是否有剩餘堂數
-    const studentResult = await db.query(
-      'SELECT lessons_total, lessons_used FROM students WHERE id = $1',
+    // 前端傳 user_id，轉換成 students.id
+    const studentRecord = await db.query(
+      'SELECT id, lessons_total, lessons_used FROM students WHERE user_id = $1',
       [studentId]
     );
 
-    if (studentResult.rows.length === 0) {
+    if (studentRecord.rows.length === 0) {
       return res.status(404).json(response(false, null, '學生不存在'));
     }
 
-    const { lessons_total, lessons_used } = studentResult.rows[0];
+    const { id: studentDbId, lessons_total, lessons_used } = studentRecord.rows[0];
+
     if (lessons_used >= lessons_total) {
-      return res.status(400).json(response(false, null, '學生剩餘堂數不足'));
+      return res.status(400).json(response(false, null, '學生剩餘堂數不足，請先新增堂數'));
     }
 
     // 建立課程
     const result = await db.query(
       'INSERT INTO lessons (student_id, teacher_id, lesson_date, lesson_time, duration) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [studentId, teacherId, lessonDate, lessonTime, duration || 60]
+      [studentDbId, teacherId, lessonDate, lessonTime, duration || 60]
     );
 
     // 格式化回傳資料
@@ -216,16 +217,28 @@ router.post('/credits', authenticateToken, requireRole('teacher'), async (req, r
 
     const teacherId = teacherResult.rows[0].id;
 
+    // 前端傳 user_id，需轉換成 students.id
+    const studentRecord = await db.query(
+      'SELECT id FROM students WHERE user_id = $1',
+      [studentId]
+    );
+
+    if (studentRecord.rows.length === 0) {
+      return res.status(404).json(response(false, null, '找不到學生資料'));
+    }
+
+    const studentDbId = studentRecord.rows[0].id;
+
     // 更新學生堂數
     await db.query(
       'UPDATE students SET lessons_total = lessons_total + $1 WHERE id = $2',
-      [amount, studentId]
+      [amount, studentDbId]
     );
 
     // 記錄變更
     const result = await db.query(
       'INSERT INTO lesson_credit_changes (student_id, teacher_id, change_amount, reason) VALUES ($1, $2, $3, $4) RETURNING *',
-      [studentId, teacherId, amount, reason]
+      [studentDbId, teacherId, amount, reason]
     );
 
     res.status(201).json(response(true, { creditChange: result.rows[0] }));
