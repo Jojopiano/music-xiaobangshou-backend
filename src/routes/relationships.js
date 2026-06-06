@@ -113,9 +113,12 @@ router.get('/', authenticateToken, async (req, res) => {
                u.name as related_name,
                u.display_name as related_display_name,
                u.email as related_email,
-               u.avatar_url as related_avatar_url
+               u.avatar_url as related_avatar_url,
+               s.lessons_total,
+               s.lessons_used
         FROM teacher_student_relationships tsr
         JOIN users u ON tsr.student_id = u.id
+        LEFT JOIN students s ON s.user_id = u.id
         WHERE tsr.teacher_id = $1 AND tsr.status = 'active'
         ORDER BY tsr.activated_at DESC
       `;
