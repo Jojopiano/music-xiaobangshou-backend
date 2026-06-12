@@ -173,27 +173,42 @@ router.post('/oauth', async (req, res) => {
         console.error('補建角色記錄失敗（不影響登入）:', roleErr.message);
       }
     } else {
-      // 新用戶，建立帳號
-      const userResult = await db.query(
-        'INSERT INTO users (email, name, role, avatar) VALUES ($1, $2, $3, $4) RETURNING id',
-        [email || `${provider}_${providerUserId}@example.com`, name || '新用戶', userRole, name ? name.charAt(0) : '用']
+      // 先檢查 email 是否已存在（避免重複建立）
+      const resolvedEmail = email || `${provider}_${providerUserId}@example.com`;
+      const existingByEmail = await db.query(
+        'SELECT id FROM users WHERE email = $1',
+        [resolvedEmail]
       );
 
-      userId = userResult.rows[0].id;
-
-      // 依角色建立對應資料
-      if (userRole === 'teacher') {
-        await db.query('INSERT INTO teachers (user_id) VALUES ($1)', [userId]);
+      if (existingByEmail.rows.length > 0) {
+        // email 已存在但 oauth 綁定遺失，補建綁定
+        userId = existingByEmail.rows[0].id;
       } else {
-        await db.query(
-          'INSERT INTO students (user_id, instrument) VALUES ($1, $2)',
-          [userId, '未指定']
+        // 真正的新用戶，建立帳號
+        const insertResult = await db.query(
+          'INSERT INTO users (email, name, role, avatar) VALUES ($1, $2, $3, $4) RETURNING id',
+          [resolvedEmail, name || '新用戶', userRole, name ? name.charAt(0) : '用']
         );
+        userId = insertResult.rows[0].id;
+
+        // 依角色建立對應資料
+        try {
+          if (userRole === 'teacher') {
+            await db.query('INSERT INTO teachers (user_id) VALUES ($1)', [userId]);
+          } else {
+            await db.query(
+              'INSERT INTO students (user_id, instrument) VALUES ($1, $2)',
+              [userId, '未指定']
+            );
+          }
+        } catch (roleErr) {
+          console.error('建立角色記錄失敗:', roleErr.message);
+        }
       }
 
-      // 綁定 OAuth
+      // 補建 OAuth 綁定
       await db.query(
-        'INSERT INTO user_oauth_accounts (user_id, provider, provider_user_id) VALUES ($1, $2, $3)',
+        'INSERT INTO user_oauth_accounts (user_id, provider, provider_user_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
         [userId, provider, providerUserId]
       );
     }
